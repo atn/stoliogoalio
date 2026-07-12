@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "stolio-goalio",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2025-03-25",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "binding": "ASSETS",
+    "directory": ".open-next/assets"
+  },
+  "routes": [
+    { "pattern": "stoliogoalio.com", "custom_domain": true },
+    { "pattern": "www.stoliogoalio.com", "custom_domain": true }
+  ]
+}

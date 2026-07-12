@@ -1,0 +1,49 @@
+name: EA snapshot
+
+# Fetches the live EA Pro Clubs data from GitHub's runner (a trusted IP that
+# Akamai allows, unlike Cloudflare's) and publishes it to the `data` branch.
+# The site reads the raw file from that branch. No secrets, no signups —
+# uses the built-in GITHUB_TOKEN.
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'   # every 5 minutes
+  workflow_dispatch: {}      # lets you run it by hand from the Actions tab
+
+# least-privilege token that can push to the repo
+permissions:
+  contents: write
+
+concurrency:
+  group: ea-snapshot
+  cancel-in-progress: true
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Fetch EA snapshot
+        run: node scripts/snapshot.mjs > snapshot.json
+
+      - name: Publish to the data branch
+        run: |
+          set -e
+          mkdir -p out && mv snapshot.json out/snapshot.json
+          cd out
+          git init -q
+          git checkout -q -b data
+          git config user.name  "stolio-snapshot-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add snapshot.json
+          git commit -q -m "snapshot $(date -u +%FT%TZ)"
+          # single-commit force push keeps history clean and never triggers a
+          # production build (Cloudflare only builds the production branch)
+          git push -q --force "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" data
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
