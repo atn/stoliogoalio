@@ -157,11 +157,32 @@ export interface MatchClub {
   score: string;
   details: ClubInfo;
 }
+// Per-player, per-match stat line (EA sends everything as strings).
+export interface MatchPlayer {
+  playername: string;
+  pos: string;
+  goals: string;
+  assists: string;
+  rating: string;
+  shots: string;
+  passesmade: string;
+  passattempts: string;
+  tacklesmade: string;
+  tackleattempts: string;
+  saves: string;
+  redcards: string;
+  mom: string;
+  goalsconceded: string;
+  cleansheetsany: string;
+  [k: string]: string;
+}
 export interface Match {
   matchId: string;
   timestamp: number;
   timeAgo?: { number: number; unit: string };
   clubs: Record<string, MatchClub>;
+  players?: Record<string, Record<string, MatchPlayer>>;
+  aggregate?: Record<string, Record<string, string>>;
 }
 
 // ── Snapshot source ─────────────────────────────────────────────────────
@@ -301,6 +322,45 @@ export function resultFor(m: Match, clubId: string): Res | null {
 export function opponentOf(m: Match, clubId: string): MatchClub | null {
   const id = Object.keys(m.clubs).find((k) => k !== clubId);
   return id ? m.clubs[id] : null;
+}
+
+export function opponentId(m: Match, clubId: string): string | null {
+  return Object.keys(m.clubs).find((k) => k !== clubId) ?? null;
+}
+
+// Per-player lines for one club in a match, sorted by rating (best first).
+export function matchLineup(m: Match, clubId: string): MatchPlayer[] {
+  const p = m.players?.[clubId];
+  if (!p) return [];
+  return Object.values(p).sort((a, b) => Number(b.rating) - Number(a.rating));
+}
+
+// Who scored (and how many) for one club in a match.
+export function scorersFor(m: Match, clubId: string): { name: string; goals: number; assists: number }[] {
+  return matchLineup(m, clubId)
+    .filter((p) => Number(p.goals) > 0 || Number(p.assists) > 0)
+    .map((p) => ({ name: p.playername, goals: Number(p.goals), assists: Number(p.assists) }))
+    .sort((a, b) => b.goals - a.goals || b.assists - a.assists);
+}
+
+// Every match a player featured in, newest first, with their line for that game.
+export function playerGameLog(name: string, matches: Match[]): { m: Match; line: MatchPlayer }[] {
+  const out: { m: Match; line: MatchPlayer }[] = [];
+  for (const m of matches) {
+    const squad = m.players?.[CLUB.id];
+    if (!squad) continue;
+    const line = Object.values(squad).find((p) => p.playername === name);
+    if (line) out.push({ m, line });
+  }
+  return out;
+}
+
+export async function getMatchById(id: string): Promise<Match | null> {
+  const snap = await loadSnapshot();
+  const pool = snap
+    ? [...snap.league, ...snap.playoff]
+    : [...(await getMatches('leagueMatch', 25)), ...(await getMatches('playoffMatch', 25))];
+  return pool.find((m) => String(m.matchId) === String(id)) ?? null;
 }
 
 // EA proPos index → readable position label (verified: 14=CM, 5=CB, 25=ST).

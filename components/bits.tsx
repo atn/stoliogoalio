@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Member, Match, posLabel, num, resultFor, opponentOf, CLUB } from '@/lib/ea';
+import { Member, Match, posLabel, num, resultFor, opponentOf, scorersFor, CLUB } from '@/lib/ea';
 import { impact } from '@/lib/analytics';
 
 // ── nav ──────────────────────────────────────────────────────────
@@ -107,18 +107,25 @@ export function ResultRows({ matches, limit }: { matches: Match[]; limit?: numbe
         const me = m.clubs[CLUB.id];
         const opp = opponentOf(m, CLUB.id);
         if (!res || !me) return null;
+        const scorers = scorersFor(m, CLUB.id).filter((s) => s.goals > 0);
         return (
-          <div className="res-row" key={m.matchId}>
+          <Link className="res-row" key={m.matchId} href={`/match/${encodeURIComponent(m.matchId)}`}>
             <span className={`tag ${res}`}>{res === 'W' ? 'Win' : res === 'L' ? 'Loss' : 'Draw'}</span>
             <span className="opp">
               {opp?.details?.name || 'Unknown'}
-              <small>{opp?.details?.customKit?.stadName || '—'}</small>
+              <small>
+                {scorers.length
+                  ? scorers.map((s) => `${s.name}${s.goals > 1 ? ` ×${s.goals}` : ''}`).join(' · ')
+                  : opp?.details?.customKit?.stadName || '—'}
+              </small>
             </span>
             <div style={{ textAlign: 'right' }}>
               <span className="sc">{me.goals}–{me.goalsAgainst}</span>
-              <div className="when">{m.timeAgo ? `${m.timeAgo.number} ${m.timeAgo.unit} ago` : ''}</div>
+              <div className="when">
+                {m.timeAgo ? `${m.timeAgo.number} ${m.timeAgo.unit} ago` : ''} · report →
+              </div>
             </div>
-          </div>
+          </Link>
         );
       })}
       {!rows.length && <div className="empty">No results on the wire yet</div>}

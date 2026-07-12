@@ -1,5 +1,7 @@
 import Link from 'next/link';
-import { getMembers, posLabel, num, prevGoalsSeries } from '@/lib/ea';
+import {
+  getMembers, getRecentMatches, playerGameLog, resultFor, opponentOf, posLabel, num, prevGoalsSeries, CLUB,
+} from '@/lib/ea';
 import { Nav, Footer, Spark } from '@/components/bits';
 import { Counter, Reveal, BarRow } from '@/components/fx';
 import { impact, squadPercentiles, playerForm } from '@/lib/analytics';
@@ -8,7 +10,7 @@ export const revalidate = 45;
 
 export default async function Player({ params }: { params: { name: string } }) {
   const name = decodeURIComponent(params.name);
-  const members = await getMembers();
+  const [members, recent] = await Promise.all([getMembers(), getRecentMatches(24)]);
   const roster = [...members].sort(
     (a, b) => num(b.gamesPlayed) - num(a.gamesPlayed) || num(b.ratingAve) - num(a.ratingAve),
   );
@@ -34,6 +36,7 @@ export default async function Player({ params }: { params: { name: string } }) {
   const imp = impact(m);
   const pct = squadPercentiles(m, members);
   const form = playerForm(prevGoalsSeries(m));
+  const log = playerGameLog(name, recent);
 
   return (
     <>
@@ -143,6 +146,47 @@ export default async function Player({ params }: { params: { name: string } }) {
             <Spark data={prevGoalsSeries(m)} />
           </div>
         </section>
+
+        {/* per-game match log */}
+        {log.length > 0 && (
+          <section className="section" style={{ paddingLeft: 0, paddingRight: 0 }}>
+            <div className="sec-head" style={{ margin: '0 var(--gutter)' }}>
+              <div>
+                <span className="kicker">Every appearance</span>
+                <h2 className="section-title" style={{ fontSize: 'clamp(28px,4vw,42px)' }}>Match log</h2>
+              </div>
+            </div>
+            <div className="glog-head">
+              <span className="l">Res</span><span className="l">Opponent</span><span>Score</span>
+              <span>G</span><span>A</span><span>Rat</span>
+            </div>
+            <div className="glog">
+              {log.map(({ m: mm, line }) => {
+                const res = resultFor(mm, CLUB.id);
+                const meC = mm.clubs[CLUB.id];
+                const opp = opponentOf(mm, CLUB.id);
+                const g = num(line.goals), a = num(line.assists);
+                if (!res || !meC) return null;
+                return (
+                  <Link key={mm.matchId} href={`/match/${encodeURIComponent(mm.matchId)}`} className="glog-row">
+                    <span className={`rz ${res}`}>{res}</span>
+                    <span className="vs">
+                      {opp?.details?.name || 'Unknown'}
+                      <small style={{ display: 'block' }}>
+                        {mm.timeAgo ? `${mm.timeAgo.number} ${mm.timeAgo.unit} ago` : ''}
+                        {line.mom === '1' ? ' · ★ MOTM' : ''}
+                      </small>
+                    </span>
+                    <span className="sc2">{meC.goals}–{meC.goalsAgainst}</span>
+                    <span className={`st2 ${g === 0 ? 'zero' : ''}`}>{g}</span>
+                    <span className={`st2 ${a === 0 ? 'zero' : ''}`}>{a}</span>
+                    <span className="st2 rat">{line.rating}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         <Footer />
       </main>
