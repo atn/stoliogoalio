@@ -6,9 +6,12 @@ name: EA snapshot
 # uses the built-in GITHUB_TOKEN.
 
 on:
+  # Cloudflare's cron Worker drives the real 5-min cadence via workflow_dispatch
+  # (GitHub's own scheduler is unreliable). These are just a backstop in case
+  # the Cloudflare pinger ever goes down.
   schedule:
-    - cron: '*/5 * * * *'   # every 5 minutes
-  workflow_dispatch: {}      # lets you run it by hand from the Actions tab
+    - cron: '13,43 * * * *'   # twice an hour, off the hour (GitHub honors these better)
+  workflow_dispatch: {}       # called by the Cloudflare cron Worker + the Run button
 
 # least-privilege token that can push to the repo
 permissions:
