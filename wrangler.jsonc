@@ -4,6 +4,9 @@
   "main": ".open-next/worker.js",
   "compatibility_date": "2025-03-25",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "vars": {
+    "SUPABASE_URL": "https://stolio-goalio.nitsua.net"
+  },
   "assets": {
     "binding": "ASSETS",
     "directory": ".open-next/assets"

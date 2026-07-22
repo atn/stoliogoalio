@@ -8,6 +8,7 @@ export function Nav({ active }: { active: string }) {
     ['/', 'Index'],
     ['/squad', 'Squad'],
     ['/matches', 'Results'],
+    ['/clips', 'Clips'],
   ] as const;
   return (
     <div className="nav">
